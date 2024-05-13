@@ -1,0 +1,53 @@
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+
+# Django local settings
+**/local_settings.py
+
+# Database files
+*.sqlite3
+*.sqlite3-journal
+
+# Media files
+media/
+
+# VSCode settings
+.vscode/
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+
+# DB schema
+**/migrations/
+
+# Environment variables and virtual environment
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# Distribution / packaging
+dist/
+
+# Cache files
+*.pyc
+.cache/
+
+# Django secret key storage
+secrets.json
+
+# Docker ignore
+**/Dockerfile
+**/docker-compose.yml
