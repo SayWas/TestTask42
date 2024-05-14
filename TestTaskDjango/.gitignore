@@ -20,8 +20,8 @@ media/
 # Temporary files
 *.tmp
 
-# DB schema
-**/migrations/
+*/migrations/*
+!*/migrations/__init__.py
 
 # Environment variables and virtual environment
 .env
@@ -47,7 +47,3 @@ dist/
 
 # Django secret key storage
 secrets.json
-
-# Docker ignore
-**/Dockerfile
-**/docker-compose.yml

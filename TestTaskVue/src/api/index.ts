@@ -3,7 +3,7 @@ import router from '../router';
 import { useUserStore } from '../stores/userStore';
 
 const loginConfig = {
-  baseURL: 'http://127.0.0.1:8000/api',
+  baseURL: 'http://localhost:8000/api',
   headers: {
     'Content-Type': 'multipart/form-data'
   },
@@ -13,7 +13,7 @@ const loginConfig = {
 export const LoginAPIInstance = axios.create(loginConfig);
 
 const defaultConfig = {
-  baseURL: "http://127.0.0.1:8000/api",
+  baseURL: "http://localhost:8000/api",
   headers:{
     'Content-Type': 'application/json'
   }

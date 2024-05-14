@@ -1,4 +1,7 @@
-pip install django
-pip install djangorestframework
-pip install django-environ
-pip install djangorestframework-simplejwt
+Django==4.2.11
+django-cors-headers==4.3.1
+django-environ==0.11.2
+djangorestframework==3.15.1
+djangorestframework-simplejwt==5.3.1
+pytest==8.2.0
+pytest-django==4.8.0
