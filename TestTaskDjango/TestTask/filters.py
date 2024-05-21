@@ -1,10 +1,13 @@
-from django.contrib.contenttypes.models import ContentType
 from django.contrib.admin import SimpleListFilter
+from django.contrib.contenttypes.models import ContentType
+
 
 class OrganizationTypeFilter(SimpleListFilter):
     """
-    A custom admin filter based on the type of organization (either Subsidiary or Contractor).
-    This filter allows admins to quickly view users associated with a specific type of organization.
+    A custom admin filter based on the type of organization
+    (either Subsidiary or Contractor).
+    This filter allows admins to quickly view users associated
+    with a specific type of organization.
     """
     title = 'organization type'
     parameter_name = 'organization_type'
@@ -22,5 +25,6 @@ class OrganizationTypeFilter(SimpleListFilter):
                 'contractor': ContentType.objects.get(model='contractor')
             }
         if self.value() in self.content_types:
-            return queryset.filter(content_type=self.content_types[self.value()])
+            return queryset.filter(content_type=self.
+                                   content_types[self.value()])
         return queryset

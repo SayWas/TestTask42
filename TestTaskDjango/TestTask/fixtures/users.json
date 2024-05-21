@@ -1,0 +1,36 @@
+[
+  {
+    "model": "TestTask.user",
+    "pk": 1,
+    "fields": {
+      "username": "testuser",
+      "email": "testuser@example.com",
+      "password": "password",
+      "is_superuser": false,
+      "is_staff": false,
+      "is_active": true,
+      "first_name": "Test",
+      "last_name": "User",
+      "job_title": "GD",
+      "content_type": 1,
+      "object_id": 1
+    }
+  },
+  {
+    "model": "TestTask.user",
+    "pk": 2,
+    "fields": {
+      "username": "testuser2",
+      "email": "newuser@example.com",
+      "password": "password",
+      "is_superuser": false,
+      "is_staff": false,
+      "is_active": true,
+      "first_name": "New",
+      "last_name": "User",
+      "job_title": "MN",
+      "content_type": 1,
+      "object_id": 1
+    }
+  }
+]

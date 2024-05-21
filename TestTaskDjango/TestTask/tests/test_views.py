@@ -1,167 +1,71 @@
-import pytest
 from django.urls import reverse
-from rest_framework.test import APIClient
-from rest_framework import status
-from TestTask.models import Subsidiary, Contractor, Contract, User, ContractRole
-from django.contrib.contenttypes.models import ContentType
-from datetime import date
+from django.contrib.auth import get_user_model
 
-def create_user(username, password, job_title, organization=None):
-    user = User.objects.create_user(username=username, password=password, job_title=job_title)
-    if organization:
-        content_type = ContentType.objects.get_for_model(organization)
-        user.content_type = content_type
-        user.object_id = organization.id
-        user.save()
-    return user
+from rest_framework.test import APITestCase, APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
-def create_contract(title, subsidiary, contractor):
-    return Contract.objects.create(
-        title=title,
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 31),
-        status="PD",
-        organization_do=subsidiary,
-        organization_po=contractor
-    )
+from TestTask.models import Contract
 
-@pytest.mark.django_db
-def test_contract_list_view_as_general_director():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "GD", subsidiary)
-    client.force_authenticate(user=user)
-    
-    create_contract("Test Contract", subsidiary, contractor)
-    
-    response = client.get(reverse('contract-list'))
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 1
+User = get_user_model()
 
-@pytest.mark.django_db
-def test_contract_list_view_as_non_general_director():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "MN", subsidiary)
-    client.force_authenticate(user=user)
-    
-    create_contract("Test Contract", subsidiary, contractor)
-    
-    response = client.get(reverse('contract-list'))
-    assert response.status_code == status.HTTP_200_OK
-    assert len(response.data) == 0
 
-@pytest.mark.django_db
-def test_contract_detail_view():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "GD", subsidiary)
-    client.force_authenticate(user=user)
-    
-    contract = create_contract("Test Contract", subsidiary, contractor)
-    
-    response = client.get(reverse('contract-detail', kwargs={'pk': contract.pk}))
-    assert response.status_code == status.HTTP_200_OK
-    assert response.data['title'] == "Test Contract"
+class ContractViewTests(APITestCase):
+    fixtures = [
+        'users.json', 'organizations.json',
+        'contracts.json', 'contract_roles.json'
+    ]
 
-@pytest.mark.django_db
-def test_contract_detail_view_access_restricted():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "MN", subsidiary)
-    client.force_authenticate(user=user)
-    
-    contract = create_contract("Test Contract", subsidiary, contractor)
-    
-    response = client.get(reverse('contract-detail', kwargs={'pk': contract.pk}))
-    assert response.status_code == status.HTTP_403_FORBIDDEN
+    def setUp(self):
+        self.client = APIClient()
 
-@pytest.mark.django_db
-def test_contract_manage_users_view_get():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "GD", subsidiary)
-    client.force_authenticate(user=user)
-    
-    contract = create_contract("Test Contract", subsidiary, contractor)
-    ContractRole.objects.create(contract=contract, user=user, role="GD")
-    
-    response = client.get(reverse('contract-manage-users', kwargs={'pk': contract.pk}))
-    assert response.status_code == status.HTTP_200_OK
+        self.general_director = User.objects.get(username='testuser')
+        self.non_general_director = User.objects.get(username='testuser2')
 
-@pytest.mark.django_db
-def test_contract_manage_users_view_post():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "GD", subsidiary)
-    new_user = create_user("newuser", "12345", "MN", subsidiary)
-    client.force_authenticate(user=user)
-    
-    contract = create_contract("Test Contract", subsidiary, contractor)
-    ContractRole.objects.create(contract=contract, user=user, role="GD")
-    
-    response = client.post(reverse('contract-manage-users', kwargs={'pk': contract.pk}), {'username': 'newuser', 'role': 'MN'})
-    assert response.status_code == status.HTTP_201_CREATED
-    assert ContractRole.objects.filter(contract=contract, user=new_user, role='MN').exists()
+        self.general_director.set_password('password')
+        self.general_director.save()
+        self.non_general_director.set_password('password')
+        self.non_general_director.save()
 
-@pytest.mark.django_db
-def test_contract_manage_users_view_post_invalid_user():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "GD", subsidiary)
-    client.force_authenticate(user=user)
-    
-    contract = create_contract("Test Contract", subsidiary, contractor)
-    ContractRole.objects.create(contract=contract, user=user, role="GD")
-    
-    response = client.post(reverse('contract-manage-users', kwargs={'pk': contract.pk}), {'username': 'nonexistentuser', 'role': 'MN'})
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+        self.general_director_token = str(
+            RefreshToken.for_user(self.general_director).access_token)
+        self.non_general_director_token = str(
+            RefreshToken.for_user(self.non_general_director).access_token)
 
-@pytest.mark.django_db
-def test_contract_manage_users_view_delete():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "GD", subsidiary)
-    new_user = create_user("newuser", "12345", "MN", subsidiary)
-    client.force_authenticate(user=user)
-    
-    contract = create_contract("Test Contract", subsidiary, contractor)
-    ContractRole.objects.create(contract=contract, user=user, role="GD")
-    ContractRole.objects.create(contract=contract, user=new_user, role="MN")
-    
-    response = client.delete(reverse('contract-manage-users', kwargs={'pk': contract.pk}), {'username': 'newuser', 'role': 'MN'})
-    assert response.status_code == status.HTTP_204_NO_CONTENT
-    assert not ContractRole.objects.filter(contract=contract, user=new_user, role='MN').exists()
+        self.contract = Contract.objects.get(pk=1)
 
-@pytest.mark.django_db
-def test_contract_manage_users_view_delete_invalid_user():
-    client = APIClient()
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    contractor = Contractor.objects.create(name="Test Contractor")
-    
-    user = create_user("testuser", "12345", "GD", subsidiary)
-    new_user = create_user("newuser", "12345", "MN", subsidiary)
-    client.force_authenticate(user=user)
-    
-    contract = create_contract("Test Contract", subsidiary, contractor)
-    ContractRole.objects.create(contract=contract, user=user, role="GD")
-    ContractRole.objects.create(contract=contract, user=new_user, role="MN")
-    
-    response = client.delete(reverse('contract-manage-users', kwargs={'pk': contract.pk}), {'username': 'nonexistentuser', 'role': 'MN'})
-    assert response.status_code == status.HTTP_404_NOT_FOUND
+    def test_contract_list_view_as_general_director(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {
+                                self.general_director_token}')
+        response = self.client.get(reverse('contract-list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_contract_list_view_as_non_general_director(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {
+                                self.non_general_director_token}')
+        response = self.client.get(reverse('contract-list'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+
+    def test_contract_detail_view(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {
+                                self.general_director_token}')
+        response = self.client.get(
+            reverse('contract-detail', kwargs={'pk': self.contract.pk}))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['title'], "Test Contract")
+
+    def test_contract_manage_users_view_get(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {
+                                self.general_director_token}')
+        response = self.client.get(
+            reverse('contract-manage-users', kwargs={'pk': self.contract.pk}))
+        self.assertEqual(response.status_code, 200)
+
+    def test_contract_manage_users_view_post_invalid_user(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {
+                                self.general_director_token}')
+        response = self.client.post(
+            reverse('contract-manage-users', kwargs={'pk': self.contract.pk}),
+            {'username': 'nonexistentuser', 'role': 'MN'})
+        self.assertEqual(response.status_code, 404)

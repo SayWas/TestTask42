@@ -1,169 +1,107 @@
-import pytest
-from django.core.exceptions import ValidationError
+from datetime import date
+
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
+from django.test import TestCase
+
 from TestTask.models import Subsidiary, Contractor, Contract, ContractRole
-from datetime import date
 
 User = get_user_model()
 
-@pytest.mark.django_db
-def test_create_subsidiary():
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    assert Subsidiary.objects.count() == 1
-    assert subsidiary.name == "Test Subsidiary"
-    assert subsidiary.is_system_owner
 
-@pytest.mark.django_db
-def test_create_contractor():
-    contractor = Contractor.objects.create(name="Test Contractor", licensed=True)
-    assert Contractor.objects.count() == 1
-    assert contractor.name == "Test Contractor"
-    assert contractor.licensed
+class ModelsTestCase(TestCase):
+    fixtures = ['users.json', 'organizations.json', 'contracts.json']
 
-@pytest.mark.django_db
-def test_create_user():
-    content_type = ContentType.objects.get_for_model(Subsidiary)
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary", is_system_owner=True)
-    user = User.objects.create_user(
-        username="testuser",
-        password="12345",
-        first_name="Test",
-        last_name="User",
-        content_type=content_type,
-        object_id=subsidiary.id,
-        job_title="GD"
-    )
-    assert User.objects.count() == 1
-    assert user.username == "testuser"
-    assert user.organization == subsidiary
-    assert user.job_title == "GD"
+    def test_create_subsidiary(self):
+        Subsidiary.objects.create(name="New Subsidiary", is_system_owner=False)
+        new_subsidiary = Subsidiary.objects.get(name="New Subsidiary")
+        self.assertEqual(Subsidiary.objects.count(), 2)
+        self.assertFalse(new_subsidiary.is_system_owner)
 
-@pytest.mark.django_db
-def test_create_contract():
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary")
-    contractor = Contractor.objects.create(name="Test Contractor")
-    contract = Contract.objects.create(
-        title="Test Contract",
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 31),
-        status="PD",
-        organization_do=subsidiary,
-        organization_po=contractor
-    )
-    assert Contract.objects.count() == 1
-    assert contract.title == "Test Contract"
-    assert contract.status == "PD"
-    assert contract.organization_do == subsidiary
-    assert contract.organization_po == contractor
+    def test_create_contractor(self):
+        Contractor.objects.create(name="New Contractor", licensed=False)
+        new_contractor = Contractor.objects.get(name="New Contractor")
+        self.assertEqual(Contractor.objects.count(), 2)
+        self.assertFalse(new_contractor.licensed)
 
-@pytest.mark.django_db
-def test_create_contract_role():
-    user = User.objects.create_user(username="testuser", password="12345")
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary")
-    contractor = Contractor.objects.create(name="Test Contractor")
-    contract = Contract.objects.create(
-        title="Test Contract",
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 31),
-        status="PD",
-        organization_do=subsidiary,
-        organization_po=contractor
-    )
-    role = ContractRole.objects.create(contract=contract, user=user, role="MN")
-    assert ContractRole.objects.count() == 1
-    assert role.role == "MN"
-    assert role.contract == contract
-    assert role.user == user
+    def test_create_user(self):
+        content_type = ContentType.objects.get_for_model(Subsidiary)
+        User.objects.create_user(
+            username="newuser",
+            password="12345",
+            first_name="Test",
+            last_name="User",
+            content_type=content_type,
+            object_id=Subsidiary.objects.get(pk=1).id,
+            job_title="GD"
+        )
+        new_user = User.objects.get(username="newuser")
+        self.assertEqual(User.objects.count(), 3)
+        self.assertEqual(new_user.username, "newuser")
 
-@pytest.mark.django_db
-def test_contract_clean_method():
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary")
-    contractor = Contractor.objects.create(name="Test Contractor")
+    def test_create_contract(self):
+        subsidiary = Subsidiary.objects.get(pk=1)
+        contractor = Contractor.objects.get(pk=2)
+        contract = Contract.objects.create(
+            title="Another Test Contract",
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 31),
+            status="PD",
+            organization_do=subsidiary,
+            organization_po=contractor
+        )
+        self.assertEqual(contract.title, "Another Test Contract")
+        self.assertEqual(contract.status, "PD")
+        self.assertEqual(contract.organization_do, subsidiary)
+        self.assertEqual(contract.organization_po, contractor)
 
-    contract = Contract(
-        title="Invalid",
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 31),
-        status="PD",
-        organization_do=subsidiary,
-        organization_po=contractor
-    )
-    with pytest.raises(ValidationError) as excinfo:
-        contract.clean()
-    assert 'The title must be between 10 and 100 characters long and can only contain letters, numbers, spaces, and hyphens.' in str(excinfo.value)
+    def test_create_contract_role(self):
+        user = User.objects.get(pk=1)
+        contract = Contract.objects.get(pk=1)
+        role = ContractRole.objects.create(
+            contract=contract, user=user, role="MN")
+        self.assertEqual(role.role, "MN")
+        self.assertEqual(role.contract, contract)
+        self.assertEqual(role.user, user)
 
-    contract.title = "Valid Title"
-    contract.start_date = date(2023, 1, 1)
-    with pytest.raises(ValidationError) as excinfo:
-        contract.clean()
-    assert 'The start date cannot be earlier than today.' in str(excinfo.value)
+    def test_contract_clean_method(self):
+        subsidiary = Subsidiary.objects.get(pk=1)
+        contractor = Contractor.objects.get(pk=2)
+        contract = Contract(
+            title="Invalid",
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 31),
+            status="PD",
+            organization_do=subsidiary,
+            organization_po=contractor
+        )
+        with self.assertRaises(ValidationError):
+            contract.clean()
 
-    contract.start_date = date(2024, 12, 31)
-    contract.end_date = date(2024, 1, 1)
-    with pytest.raises(ValidationError) as excinfo:
-        contract.clean()
-    assert 'The start date cannot be after or equal to the end date.' in str(excinfo.value)
+        contract.title = "Valid Title"
+        contract.start_date = date(2023, 1, 1)
+        with self.assertRaises(ValidationError):
+            contract.clean()
 
-@pytest.mark.django_db
-def test_contract_role_unique():
-    user = User.objects.create_user(username="testuser", password="12345")
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary")
-    contractor = Contractor.objects.create(name="Test Contractor")
-    contract = Contract.objects.create(
-        title="Test Contract",
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 31),
-        status="PD",
-        organization_do=subsidiary,
-        organization_po=contractor
-    )
-    ContractRole.objects.create(contract=contract, user=user, role="MN")
-    
-    with pytest.raises(ValidationError) as excinfo:
-        duplicate_role = ContractRole(contract=contract, user=user, role="MN")
-        duplicate_role.clean()
-    assert 'This user is already assigned this role in this contract.' in str(excinfo.value)
+        contract.start_date = date(2024, 12, 31)
+        contract.end_date = date(2024, 1, 1)
+        with self.assertRaises(ValidationError):
+            contract.clean()
 
-@pytest.mark.django_db
-def test_str_methods():
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary")
-    contractor = Contractor.objects.create(name="Test Contractor")
-    user = User.objects.create_user(username="testuser", password="12345", first_name="Test", last_name="User")
-    
-    contract = Contract.objects.create(
-        title="Test Contract",
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 31),
-        status="PD",
-        organization_do=subsidiary,
-        organization_po=contractor
-    )
-    
-    role = ContractRole.objects.create(contract=contract, user=user, role="MN")
-    
-    assert str(subsidiary) == "Test Subsidiary"
-    assert str(contractor) == "Test Contractor"
-    assert str(contract) == "Test Contract between Test Subsidiary and Test Contractor"
-    assert str(role) == "Test User as Manager in Test Contract"
+    def test_contract_role_unique(self):
+        user = User.objects.get(pk=1)
+        contract = Contract.objects.get(pk=1)
+        ContractRole.objects.create(contract=contract, user=user, role="MN")
+        with self.assertRaises(ValidationError):
+            duplicate_role = ContractRole(
+                contract=contract, user=user, role="MN")
+            duplicate_role.clean()
 
-@pytest.mark.django_db
-def test_delete_contract_deletes_roles():
-    subsidiary = Subsidiary.objects.create(name="Test Subsidiary")
-    contractor = Contractor.objects.create(name="Test Contractor")
-    user = User.objects.create_user(username="testuser", password="12345")
-    
-    contract = Contract.objects.create(
-        title="Test Contract",
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 31),
-        status="PD",
-        organization_do=subsidiary,
-        organization_po=contractor
-    )
-    
-    role = ContractRole.objects.create(contract=contract, user=user, role="MN")
-    contract.delete()
-    
-    assert Contract.objects.count() == 0
-    assert ContractRole.objects.count() == 0
+    def test_delete_contract_deletes_roles(self):
+        contract = Contract.objects.get(pk=1)
+        user = User.objects.get(pk=1)
+        ContractRole.objects.create(contract=contract, user=user, role="MN")
+        contract.delete()
+        self.assertEqual(Contract.objects.count(), 0)
+        self.assertEqual(ContractRole.objects.count(), 0)

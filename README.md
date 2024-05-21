@@ -9,6 +9,7 @@ Before you begin, ensure you have the following installed on your local machine:
 
 - [Docker](https://www.docker.com/)
 - [Docker Compose](https://docs.docker.com/compose/)
+- Python 3.8 or higher
 
 ## Project Structure
 
@@ -32,14 +33,16 @@ Before you begin, ensure you have the following installed on your local machine:
 
 ## Setup and Run
 
-### 1. Clone the Repository
+### Using Docker
+
+#### 1. Clone the Repository
 
 ```bash
 git clone <repository_url>
 cd <repository_directory>
 ```
 
-### 2. Build and Start the Services
+#### 2. Build and Start the Services
 
 To build and start the Django and Vue services, run the following command:
 
@@ -56,34 +59,90 @@ This command will:
    - Start the Django development server on `0.0.0.0:8000`
 3. Start the Vue development server on `0.0.0.0:8080`
 
-### 3. Access the Services
+#### 3. Access the Services
 
 - Django backend: [http://localhost:8000](http://localhost:8000)
 - Vue frontend: [http://localhost:8080](http://localhost:8080)
+
+### Without Docker
+
+To setup and run the project without Docker:
+
+#### 1. Set up a Python virtual environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+#### 2. Install dependencies
+
+```bash
+cd TestTaskDjango
+pip install -r requirements.txt
+```
+
+#### 3. Database Migrations and Superuser Creation
+
+```bash
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+#### 4. Run the Development Server
+
+```bash
+python manage.py runserver
+```
+
+#### 5. In a new terminal, setup and run the Vue project
+
+```bash
+cd ../TestTaskVue
+npm install
+npm run dev
+```
 
 ### 4. Running Tests
 
 To run the Django tests, use the following command:
 
 ```bash
-docker-compose --profile test run --rm django_test pytest -v
+docker-compose --profile test run --rm django_test
+```
+
+Or without Docker:
+
+```bash
+cd TestTaskDjango
+python manage.py test
 ```
 
 This will build and start the `django_test` service, which runs `pytest` for the Django application.
 
 ## Environment Variables
 
-The following environment variables are used in the `docker-compose.yml` file:
+Configure the required environment variables for both Docker and non-Docker setups. Create a `.env` file in the root of the Django project and ensure it's listed in your `.gitignore` to secure sensitive information.
 
-- **Django Service**:
-  - `SECRET_KEY`: Your Django secret key.
-  - `DEBUG`: Set to `True` for development.
-  - `DJANGO_SUPERUSER_USERNAME`: Username for the Django superuser.
-  - `DJANGO_SUPERUSER_EMAIL`: Email for the Django superuser.
-  - `DJANGO_SUPERUSER_PASSWORD`: Password for the Django superuser.
+### Common Environment Variables for Django and Vue Services:
+- `SECRET_KEY`: Your Django secret key, crucial for security.
+- `DEBUG`: Set to `True` for development, `False` for production.
+- `DJANGO_SUPERUSER_USERNAME`: Username for the Django superuser.
+- `DJANGO_SUPERUSER_EMAIL`: Email for the Django superuser.
+- `DJANGO_SUPERUSER_PASSWORD`: Secure password for the Django superuser.
+- `NODE_ENV`: Set to `development` for the Vue service during development.
 
-- **Vue Service**:
-  - `NODE_ENV`: Set to `development` for development.
+### Django-specific Environment Variables:
+- `ALLOWED_HOSTS`: Host/domain names that this Django site can serve.
+- `CORS_ALLOWED_ORIGINS`: Frontend hosts allowed for cross-origin requests.
+
+### Redis and Celery Configuration for Django:
+- `CELERY_BROKER_URL`: URL for the Celery message broker (Redis in this case).
+- `CELERY_RESULT_BACKEND`: Backend to store Celery task results.
+
+## Documentation
+
+For detailed documentation on the project architecture and APIs, please refer to [Project Documentation](./docs/TestTaskDjango_Documentation.md).
 
 ## Cleaning Up
 
@@ -93,12 +152,15 @@ To remove all Docker containers, networks, and images created by `docker-compose
 docker-compose down --rmi all --volumes --remove-orphans
 ```
 
-This command will:
+Or clean up without Docker:
 
-- Remove all containers created by `docker-compose up`
-- Remove all images built by `docker-compose`
-- Remove all volumes created by `docker-compose`
-- Remove any orphaned containers
+```bash
+# Remove Python virtual environment
+rm -rf venv
+# Clean up node modules in Vue project
+cd ../TestTaskVue
+rm -rf node_modules
+```
 
 ## License
 

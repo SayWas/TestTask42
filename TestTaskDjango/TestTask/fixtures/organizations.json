@@ -1,0 +1,30 @@
+[
+  {
+    "model": "TestTask.organization",
+    "pk": 1,
+    "fields": {
+      "name": "Test Subsidiary"
+    }
+  },
+  {
+    "model": "TestTask.subsidiary",
+    "pk": 1,
+    "fields": {
+      "is_system_owner": true
+    }
+  },
+  {
+    "model": "TestTask.organization",
+    "pk": 2,
+    "fields": {
+      "name": "Test Contractor"
+    }
+  },
+  {
+    "model": "TestTask.contractor",
+    "pk": 2,
+    "fields": {
+      "licensed": true
+    }
+  }
+]

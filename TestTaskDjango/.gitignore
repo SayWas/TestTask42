@@ -20,9 +20,6 @@ media/
 # Temporary files
 *.tmp
 
-*/migrations/*
-!*/migrations/__init__.py
-
 # Environment variables and virtual environment
 .env
 .venv/
