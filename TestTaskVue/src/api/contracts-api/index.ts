@@ -50,12 +50,12 @@ export const ContractsAPI = {
    */
   async get_contracts(userAccessToken: string): Promise<Contract[]> {
     try {
-      const response = await DefaultAPIInstance.get<Contract[]>('/contracts/', {
+      const response = await DefaultAPIInstance.get('/contracts/', {
         headers: {
           Authorization: `Bearer ${userAccessToken}`
         }
       })
-      return response.data
+      return response.data.data;
     } catch (error) {
       console.error('Error fetching contracts:', error)
       throw new Error('Failed to fetch contracts')
@@ -70,12 +70,12 @@ export const ContractsAPI = {
    */
   async get_contract_details(userAccessToken: string, contractId: number): Promise<Contract> {
     try {
-      const response = await DefaultAPIInstance.get<Contract>(`/contracts/${contractId}/`, {
+      const response = await DefaultAPIInstance.get(`/contracts/${contractId}/`, {
         headers: {
           Authorization: `Bearer ${userAccessToken}`
         }
       })
-      return response.data
+      return response.data.data;
     } catch (error) {
       console.error('Error fetching contract details:', error)
       throw new Error('Failed to fetch contract details')
@@ -90,7 +90,7 @@ export const ContractsAPI = {
    */
   async get_available_users(userAccessToken: string, contractId: number): Promise<SelectUser[]> {
     try {
-      const response = await DefaultAPIInstance.get<SelectUser[]>(
+      const response = await DefaultAPIInstance.get(
         `/contracts/${contractId}/manage-users/`,
         {
           headers: {
@@ -99,7 +99,7 @@ export const ContractsAPI = {
         }
       )
       if (response.status === 200) {
-        return response.data
+        return response.data.data;
       } else {
         throw new Error(`Unexpected response status: ${response.status}`)
       }
@@ -123,7 +123,7 @@ export const ContractsAPI = {
     roleToRemove: string
   ): Promise<ManageUserResponse> {
     try {
-      const response = await DefaultAPIInstance.delete<ManageUserResponse>(
+      const response = await DefaultAPIInstance.delete(
         `/contracts/${contractId}/manage-users/`,
         {
           data: { username: usernameToDelete, role: roleToRemove },
@@ -132,7 +132,7 @@ export const ContractsAPI = {
           }
         }
       )
-      return response.data
+      return response.data.data;
     } catch (error) {
       console.error('Error removing user from contract:', error)
       throw new Error('Failed to remove user from contract')
@@ -153,7 +153,7 @@ export const ContractsAPI = {
     roleToAdd: string
   ): Promise<ManageUserResponse> {
     try {
-      const response = await DefaultAPIInstance.post<ManageUserResponse>(
+      const response = await DefaultAPIInstance.post(
         `/contracts/${contractId}/manage-users/`,
         {
           username: usernameToAdd,
@@ -165,7 +165,7 @@ export const ContractsAPI = {
           }
         }
       )
-      return response.data
+      return response.data.data;
     } catch (error) {
       console.error('Error adding user to contract:', error)
       throw new Error('Failed to add user to contract')

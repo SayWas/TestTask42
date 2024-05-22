@@ -2,11 +2,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import permissions, status, views
-from rest_framework.response import Response
 
 from .mixins import ContractPermissionMixin
 from .models import Contract, ContractRole, Contractor, Subsidiary, User
@@ -15,6 +13,7 @@ from .permissions import (
     IsGeneralDirectorOrRelatedUser
 )
 from .serializers import ContractSerializer, UserSerializer
+from .responses import CustomResponse, CustomNotFound
 
 
 class ContractListView(views.APIView):
@@ -47,7 +46,7 @@ class ContractListView(views.APIView):
 
         contracts = contracts.distinct()
         serializer = ContractSerializer(contracts, many=True)
-        return Response(serializer.data)
+        return CustomResponse(serializer.data)
 
 
 class ContractDetailView(views.APIView, ContractPermissionMixin):
@@ -62,8 +61,10 @@ class ContractDetailView(views.APIView, ContractPermissionMixin):
 
     def get(self, request, pk):
         contract = self.get_contract(pk)
+        if not contract:
+            raise CustomNotFound()
         serializer = ContractSerializer(contract)
-        return Response(serializer.data)
+        return CustomResponse(serializer.data)
 
 
 class ContractManageUsersView(views.APIView, ContractPermissionMixin):
@@ -77,12 +78,16 @@ class ContractManageUsersView(views.APIView, ContractPermissionMixin):
 
     def get(self, request, pk):
         contract = self.get_contract(pk)
+        if not contract:
+            raise CustomNotFound()
         user = request.user
 
         if self.check_general_director_permissions(user):
-            return Response(UserSerializer(User.objects.all(), many=True).data)
+            return CustomResponse(
+                UserSerializer(User.objects.all(), many=True).data
+            )
         if not contract.roles.filter(user=user, role='GD').exists():
-            return Response({'detail': _(
+            return CustomResponse({'detail': _(
                 'You do not have permission to manage this contract.')
             }, status=status.HTTP_403_FORBIDDEN)
 
@@ -94,29 +99,35 @@ class ContractManageUsersView(views.APIView, ContractPermissionMixin):
         ).distinct()
 
         serializer = UserSerializer(eligible_users, many=True)
-        return Response(serializer.data)
+        return CustomResponse(serializer.data)
 
     def post(self, request, pk):
         contract = self.get_contract(pk)
+        if not contract:
+            raise CustomNotFound()
         user = request.user
         if (not self.check_general_director_permissions(user) and
                 not contract.roles.filter(user=user, role='GD').exists()):
-            return Response({'detail': _(
+            return CustomResponse({'detail': _(
                 'You do not have permission to manage this contract.')},
                 status=status.HTTP_403_FORBIDDEN)
 
-        new_user = get_object_or_404(
-            User, username=request.data.get('username'))
+        try:
+            new_user = User.objects.get(username=request.data.get('username'))
+        except User.DoesNotExist:
+            raise CustomNotFound()
+
         if (not (new_user.organization == contract.organization_do or
                  new_user.organization == contract.organization_po) and
                 not self.check_general_director_permissions(user)):
-            return Response({'detail': _(
+            return CustomResponse({'detail': _(
                 'User must be a member of an organization '
                 'part of this contract.')
             }, status=status.HTTP_403_FORBIDDEN)
         contract_role = request.data.get('role')
-        if contract_role and contract_role not in ['GD', 'VD', 'MN', 'SP', 'AS']:
-            return Response({'detail': _(
+        if (contract_role and
+                contract_role not in ['GD', 'VD', 'MN', 'SP', 'AS']):
+            return CustomResponse({'detail': _(
                 'Invalid data passed.')},
                 status=status.HTTP_400_BAD_REQUEST)
 
@@ -124,39 +135,48 @@ class ContractManageUsersView(views.APIView, ContractPermissionMixin):
             ContractRole.objects.create(
                 contract=contract, user=new_user, role=contract_role)
         except:
-            return Response({'detail': _(
+            return CustomResponse({'detail': _(
                 'Invalid data passed.')},
                 status=status.HTTP_400_BAD_REQUEST)
-        return Response({'detail': _(
+        return CustomResponse({'detail': _(
             'User added successfully.')},
             status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk):
         user = request.user
         contract = self.get_contract(pk)
+        if not contract:
+            raise CustomNotFound()
         if (not self.check_general_director_permissions(user) and
                 not contract.roles.filter(user=user, role='GD').exists()):
-            return Response({'detail': _(
+            return CustomResponse({'detail': _(
                 'You do not have permission to manage this contract.')},
                 status=status.HTTP_403_FORBIDDEN)
 
         contract_role = request.data.get('role')
         if (contract_role and
                 contract_role not in ['GD', 'VD', 'MN', 'SP', 'AS']):
-            return Response({'detail': _(
+            return CustomResponse({'detail': _(
                 'Invalid data passed.')},
                 status=status.HTTP_400_BAD_REQUEST)
 
-        user_to_delete = get_object_or_404(
-            User, username=request.data.get('username'))
-        role_to_delete = get_object_or_404(
-            ContractRole,
-            contract=contract,
-            user=user_to_delete,
-            role=contract_role
-        )
+        try:
+            user_to_delete = User.objects.get(
+                username=request.data.get('username'))
+        except User.DoesNotExist:
+            raise CustomNotFound()
+
+        try:
+            role_to_delete = ContractRole.objects.get(
+                contract=contract,
+                user=user_to_delete,
+                role=contract_role
+            )
+        except ContractRole.DoesNotExist:
+            raise CustomNotFound()
+
         role_to_delete.delete()
-        return Response({'detail': _(
+        return CustomResponse({'detail': _(
             'User removed successfully.')},
             status=status.HTTP_204_NO_CONTENT)
 
@@ -173,14 +193,14 @@ def fetch_users(request):
     if not org_do_id or not org_po_id:
         return JsonResponse(
             {'error': 'Both org_do_id and org_po_id must be provided and not empty.'},
-            status=400)
+            status=status.HTTP_400_BAD_REQUEST)
     try:
         org_do_id = int(org_do_id)
         org_po_id = int(org_po_id)
     except ValueError:
         return JsonResponse(
             {'error': 'org_do_id and org_po_id must be valid integers.'},
-            status=400)
+            status=status.HTTP_400_BAD_REQUEST)
     users = User.objects.filter(
         content_type__in=[ContentType.objects.get_for_model(
             Subsidiary), ContentType.objects.get_for_model(Contractor)],

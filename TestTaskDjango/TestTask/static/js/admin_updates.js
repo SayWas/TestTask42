@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const orgPoId = orgPoSelect.value;
 
         try {
-            const response = await fetch(`/api/fetch_users/?org_do_id=${orgDoId}&org_po_id=${orgPoId}`, {
+            const response = await fetch(`/fetch_users/?org_do_id=${orgDoId}&org_po_id=${orgPoId}`, {
                 method: 'GET',
                 headers: {
                     'X-CSRFToken': csrftoken,

@@ -38,14 +38,14 @@ class ContractViewTests(APITestCase):
                                 self.general_director_token}')
         response = self.client.get(reverse('contract-list'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(len(response.json()), 2)
 
     def test_contract_list_view_as_non_general_director(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {
                                 self.non_general_director_token}')
         response = self.client.get(reverse('contract-list'))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(len(response.json()), 2)
 
     def test_contract_detail_view(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {
@@ -53,7 +53,7 @@ class ContractViewTests(APITestCase):
         response = self.client.get(
             reverse('contract-detail', kwargs={'pk': self.contract.pk}))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['title'], "Test Contract")
+        self.assertEqual(response.json()['data']['title'], "Test Contract")
 
     def test_contract_manage_users_view_get(self):
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {
@@ -69,3 +69,10 @@ class ContractViewTests(APITestCase):
             reverse('contract-manage-users', kwargs={'pk': self.contract.pk}),
             {'username': 'nonexistentuser', 'role': 'MN'})
         self.assertEqual(response.status_code, 404)
+
+    def test_fetch_users(self):
+        self.client.login(username='testuser', password='password')
+        response = self.client.get(reverse('fetch_users'), {
+                                   'org_do_id': 1, 'org_po_id': 2})
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.json(), list)
