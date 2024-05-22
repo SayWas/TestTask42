@@ -10,6 +10,8 @@ Before you begin, ensure you have the following installed on your local machine:
 - [Docker](https://www.docker.com/)
 - [Docker Compose](https://docs.docker.com/compose/)
 - Python 3.10 or higher
+- [Node.js](https://nodejs.org/) (version v20.3.1 or higher recommended for Vue 3)
+- [npm](https://www.npmjs.com/) (comes with Node.js)
 
 ## Project Structure
 
