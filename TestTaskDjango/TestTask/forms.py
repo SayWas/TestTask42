@@ -54,8 +54,9 @@ class BaseUserForm(forms.ModelForm):
         self.fields['organization_choice'].choices = [
             ('', '---------')] + self.get_organization_choices()
         if self.instance.pk and self.instance.organization:
-            self.fields['organization_choice'].initial = f"{
-                self.instance.content_type.model}_{self.instance.object_id}"
+            self.fields['organization_choice'].initial = (
+                f"{self.instance.content_type.model}_{self.instance.object_id}"
+            )
 
     def get_organization_choices(self):
         """

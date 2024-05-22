@@ -9,7 +9,7 @@ Before you begin, ensure you have the following installed on your local machine:
 
 - [Docker](https://www.docker.com/)
 - [Docker Compose](https://docs.docker.com/compose/)
-- Python 3.8 or higher
+- Python 3.10 or higher
 
 ## Project Structure
 
